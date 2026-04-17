@@ -17,5 +17,5 @@ ENV PYTHONUNBUFFERED=1 \
     SCRAPER_HEADLESS=1 \
     CHROME_BIN=/usr/bin/chromium
 
-CMD ["gunicorn", "-w", "2", "-k", "gthread", "--threads", "8", "-b", "0.0.0.0:$PORT", "app:app"]
+CMD ["sh", "-c", "gunicorn -w 2 -k gthread --threads 8 -b 0.0.0.0:${PORT:-10000} app:app"]
 
