@@ -10,6 +10,7 @@ import csv
 import io
 import threading
 import logging
+import os
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, Response
 
@@ -219,4 +220,5 @@ def api_clear_jobs():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, threaded=True)
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=True, threaded=True)

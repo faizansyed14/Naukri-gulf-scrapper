@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: naukri-gulf-scrapper
+    env: docker
+    autoDeploy: true
+    envVars:
+      - key: SCRAPER_HEADLESS
+        value: "1"
+      - key: CHROME_BIN
+        value: /usr/bin/chromium

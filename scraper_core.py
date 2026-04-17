@@ -294,6 +294,14 @@ def _chrome_options() -> Options:
     # Faster DOM ready; does not wait for every image/font.
     opts.page_load_strategy = "eager"
 
+    # Allow explicitly specifying Chrome/Chromium binary path (useful on Linux containers).
+    chrome_bin = os.environ.get("CHROME_BIN", "").strip()
+    if chrome_bin:
+        try:
+            opts.binary_location = chrome_bin
+        except Exception:
+            pass
+
     headless = os.environ.get("SCRAPER_HEADLESS", "0").strip().lower() in (
         "1",
         "true",
