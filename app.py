@@ -19,7 +19,6 @@ from scraper_core import scrape_url
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 app = Flask(__name__)
-logging.getLogger(__name__).info("Flask routes: %s", app.url_map)
 
 # ── In-memory store ───────────────────────────────────────────────────────────
 # jobs_store:  { job_id: {job dict} }
@@ -218,6 +217,10 @@ def api_clear_jobs():
         scrape_tasks.clear()
         job_keys_seen.clear()
     return jsonify({"message": "cleared"})
+
+
+# Log routes after all decorators have executed (helps debug deployments).
+logging.getLogger(__name__).info("Flask routes: %s", app.url_map)
 
 
 if __name__ == "__main__":

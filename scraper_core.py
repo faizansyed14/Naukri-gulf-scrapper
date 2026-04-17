@@ -64,6 +64,29 @@ _PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 _ENV_DRIVER_KEYS = ("CHROMEDRIVER_PATH", "CHROMEDRIVER", "WEBDRIVER_CHROME_DRIVER")
 
 
+def _blocked_reason(html: str) -> Optional[str]:
+    """Best-effort detection of bot-block/captcha pages (common on cloud hosts)."""
+    if not html:
+        return None
+    t = re.sub(r"\s+", " ", html).lower()
+    needles = [
+        "captcha",
+        "verify you are human",
+        "access denied",
+        "unusual traffic",
+        "cloudflare",
+        "attention required",
+        "incapsula",
+        "perimeterx",
+        "blocked",
+        "/cdn-cgi/",
+    ]
+    for n in needles:
+        if n in t:
+            return n
+    return None
+
+
 def _env_chromedriver_path() -> Optional[str]:
     for key in _ENV_DRIVER_KEYS:
         p = os.environ.get(key, "").strip()
@@ -357,7 +380,9 @@ def _build_driver() -> webdriver.Chrome:
     then optional Selenium Manager / webdriver-manager (can hang on locked-down WiFi).
     """
     opts = _chrome_options()
-    project_exe = os.path.join(_PROJECT_DIR, "chromedriver.exe")
+    # Only meaningful on Windows. In Linux containers this file (if committed) can cause
+    # confusing warnings and delays before the PATH driver is used.
+    project_exe = os.path.join(_PROJECT_DIR, "chromedriver.exe") if sys.platform == "win32" else ""
     disable_sm = _env_flag("SCRAPER_DISABLE_SELENIUM_MANAGER")
     disable_wdm = _env_flag("SCRAPER_DISABLE_WEBDRIVER_MANAGER")
 
@@ -367,7 +392,7 @@ def _build_driver() -> webdriver.Chrome:
         if d:
             return d
 
-    if os.path.isfile(project_exe):
+    if project_exe and os.path.isfile(project_exe):
         d = _try_chrome_with_path(project_exe, "project chromedriver.exe", opts)
         if d:
             return d
@@ -1204,11 +1229,17 @@ def _scrape_naukrigulf_click_pagination(url: str, max_pages: int) -> dict:
         driver.get(start_url)
         _naukrigulf_wait_listing_ready(driver, 28)
         time.sleep(0.55)
+        r = _blocked_reason(driver.page_source)
+        if r:
+            raise RuntimeError(f"Naukrigulf appears to be blocking this host (signal: {r}).")
         page1_url = driver.current_url.strip().split("#")[0].rstrip("/")
         log.info("Naukrigulf: page-1 canonical URL (after redirect): %s", page1_url)
 
         for page in range(1, max_pages + 1):
             html = driver.page_source
+            r = _blocked_reason(html)
+            if r:
+                raise RuntimeError(f"Naukrigulf appears to be blocking this host (signal: {r}).")
             cur = driver.current_url
             soup = BeautifulSoup(html, "lxml")
             if page == 1:
