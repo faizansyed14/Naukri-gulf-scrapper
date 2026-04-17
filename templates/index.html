@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>JobScraper — Live Job Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:        #f4f6f9;
+    --surface:   #ffffff;
+    --surface2:  #f1f5f9;
+    --border:    #e2e8f0;
+    --accent:    #0284c7;
+    --accent2:   #e11d48;
+    --accent3:   #7c3aed;
+    --text:      #0f172a;
+    --muted:     #64748b;
+    --success:   #059669;
+    --warning:   #d97706;
+    --error:     #e11d48;
+    --font:      'Syne', sans-serif;
+    --mono:      'JetBrains Mono', monospace;
+    --r:         10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Grid background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(2,132,199,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(2,132,199,.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ── */
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255,255,255,.96);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 1px 0 rgba(15,23,42,.06);
+  }
+  .header-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #0284c7, #7c3aed);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .logo-text {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .logo-text span { color: var(--accent); }
+  .header-badges {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .badge.live {
+    color: var(--success);
+    border-color: rgba(5,150,105,.35);
+    background: rgba(5,150,105,.08);
+  }
+  .badge.live::before {
+    content: '● ';
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── Main layout ── */
+  main { padding: 32px 0 64px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  /* ── Panel cards ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15,23,42,.06);
+  }
+  .panel-head {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-head h2 {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+  }
+  .panel-body { padding: 20px; }
+
+  /* ── URL Input ── */
+  .url-form { display: flex; flex-direction: column; gap: 12px; }
+  .pages-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .pages-row label { font-size: 12px; font-weight: 600; color: var(--muted); min-width: 52px; }
+  .pages-input {
+    width: 72px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--surface2);
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+  }
+  .pages-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(2,132,199,.12); }
+  .pages-hint { font-size: 11px; color: var(--muted); line-height: 1.35; width: 100%; }
+  .input-group { position: relative; }
+  .url-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 12px 16px 12px 44px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .url-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(2,132,199,.12);
+  }
+  .url-input::placeholder { color: var(--muted); }
+  .input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: var(--r);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all .2s;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #fff;
+    width: 100%;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(2,132,199,.25); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 7px 14px;
+    font-size: 11px;
+  }
+  .btn-ghost:hover { color: var(--error); border-color: var(--error); }
+
+  .btn-export {
+    background: rgba(167,139,250,.1);
+    color: var(--accent3);
+    border: 1px solid rgba(167,139,250,.3);
+    padding: 8px 16px;
+    font-size: 11px;
+  }
+  .btn-export:hover { background: rgba(167,139,250,.2); }
+
+  /* ── Queue list ── */
+  .queue-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .queue-item {
+    background: #fafbfc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideIn .25s ease;
+  }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:none} }
+
+  .queue-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-queued  { background: var(--muted); }
+  .status-running {
+    background: var(--warning);
+    box-shadow: 0 0 8px var(--warning);
+    animation: pulse 1s infinite;
+  }
+  .status-done    { background: var(--success); box-shadow: 0 0 8px rgba(34,211,160,.5); }
+  .status-error   { background: var(--error); }
+
+  .queue-info { flex: 1; min-width: 0; }
+  .queue-url {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .queue-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .queue-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--success);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 1100px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04);
+  }
+  .stat-num {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent);
+    font-family: var(--mono);
+    line-height: 1;
+  }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ── Search & filter bar ── */
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .search-wrap { position: relative; flex: 1; min-width: 160px; }
+  .posted-wrap { position: relative; min-width: 140px; max-width: 200px; }
+  .posted-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 9px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--font);
+    outline: none;
+  }
+  .posted-input:focus { border-color: var(--accent); }
+  .posted-input::placeholder { color: var(--muted); font-size: 12px; }
+
+  /* ── Sorting & Months ── */
+  .sort-wrap { min-width: 200px; }
+  .sort-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .sort-select {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 9px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--font);
+    outline: none;
+  }
+  .sort-select:focus { border-color: var(--accent); }
+
+  .months-wrap {
+    margin-top: 12px;
+    background: #fbfcfe;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 12px 14px;
+  }
+  .months-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .months-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px 10px;
+  }
+  .month-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    user-select: none;
+    cursor: pointer;
+  }
+  .month-item input { transform: translateY(1px); }
+  @media (max-width: 1100px) {
+    .months-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  .search-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 9px 12px 9px 36px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--font);
+    outline: none;
+    transition: border-color .2s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); }
+  .search-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 13px;
+    pointer-events: none;
+  }
+
+  /* ── Jobs Table ── */
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .jobs-table { width: 100%; border-collapse: collapse; }
+  .jobs-table thead {
+    background: var(--surface2);
+    position: sticky;
+    top: 0px;
+    z-index: 10;
+    box-shadow: 0 2px 10px rgba(15,23,42,.08);
+  }
+  .jobs-table th {
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .jobs-table td {
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: top;
+    transition: background .15s;
+  }
+  .jobs-table tr:last-child td { border-bottom: none; }
+  .jobs-table tbody tr:hover td { background: rgba(2,132,199,.06); }
+
+  .td-title { font-weight: 700; color: var(--text); }
+  .td-title a { color: inherit; text-decoration: none; }
+  .td-title a:hover { color: var(--accent); }
+  .td-company { color: var(--muted); font-size: 12px; margin-top: 3px; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+  .pill-loc { background: rgba(2,132,199,.1); color: #0369a1; border: 1px solid rgba(2,132,199,.22); }
+  .pill-exp { background: rgba(167,139,250,.1); color: var(--accent3); border: 1px solid rgba(167,139,250,.2); }
+  .skills-wrap { display: flex; flex-wrap: wrap; gap: 4px; max-width: 220px; }
+  .skill-tag {
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  /* ── Empty / loading states ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; opacity: .4; }
+  .empty-state p { font-size: 14px; }
+
+  .loading-row td {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+  }
+  .desc-cell { font-size: 11px; color: var(--muted); line-height: 1.4; max-width: 280px; }
+
+  .spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #cbd5e1;
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* ── Toast ── */
+  #toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toast {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: toastIn .3s ease;
+    min-width: 260px;
+    max-width: 360px;
+    box-shadow: 0 10px 40px rgba(15,23,42,.12);
+  }
+  @keyframes toastIn { from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:none} }
+  .toast.success { border-color: rgba(34,211,160,.4); }
+  .toast.error   { border-color: rgba(255,77,109,.4); }
+  .toast-icon { font-size: 16px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+  /* ── Section header ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+  }
+  .section-title span { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="shell">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">🔍</div>
+        <div class="logo-text">Job<span>Scraper</span></div>
+      </div>
+      <div class="header-badges">
+        <span class="badge live">Live</span>
+        <span class="badge">v1.0</span>
+        <span class="badge">Naukrigulf Agent</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="shell">
+    <div class="layout">
+
+      <!-- ─── LEFT: Control Panel ─────────────────────────── -->
+      <aside>
+        <!-- URL Submission -->
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-head">
+            <h2>🌐 Add URL to Scrape</h2>
+          </div>
+          <div class="panel-body">
+            <div class="url-form">
+              <div class="input-group">
+                <span class="input-icon">🔗</span>
+                <input
+                  class="url-input"
+                  id="urlInput"
+                  type="url"
+                  placeholder="https://www.naukrigulf.com/jobs-in-..."
+                  autocomplete="off"
+                />
+              </div>
+              <div class="pages-row">
+                <label for="pagesInput">Pages</label>
+                <input class="pages-input" id="pagesInput" type="number" min="1" max="1000" value="1" title="How many listing pages (max 1000)"/>
+                <label for="workersInput">Workers</label>
+                <input class="pages-input" id="workersInput" type="number" min="1" max="5" value="1" title="Parallel browsers (2–5 = faster multi-page; more RAM/CPU)"/>
+                <span class="pages-hint">Card text only from listing HTML (no per-job pages). Use 2+ workers to fetch several listing pages at once. Set SCRAPER_HEADLESS=1 to reduce load.</span>
+              </div>
+              <button class="btn btn-primary" id="scrapeBtn" onclick="submitScrape()">
+                <span id="btnText">▶ Start Scraping</span>
+              </button>
+            </div>
+
+            <!-- Quick URL shortcuts -->
+            <div style="margin-top:14px">
+              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Quick Add</div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <button class="btn btn-ghost" style="justify-content:flex-start;font-size:10px;padding:7px 10px;text-transform:none;letter-spacing:0"
+                  onclick="setUrl('https://www.naukrigulf.com/jobs-in-abu-dhabi')">
+                  📍 Abu Dhabi Jobs
+                </button>
+                <button class="btn btn-ghost" style="justify-content:flex-start;font-size:10px;padding:7px 10px;text-transform:none;letter-spacing:0"
+                  onclick="setUrl('https://www.naukrigulf.com/jobs-in-dubai')">
+                  📍 Dubai Jobs
+                </button>
+                <button class="btn btn-ghost" style="justify-content:flex-start;font-size:10px;padding:7px 10px;text-transform:none;letter-spacing:0"
+                  onclick="setUrl('https://www.naukrigulf.com/jobs-in-sharjah')">
+                  📍 Sharjah Jobs
+                </button>
+                <button class="btn btn-ghost" style="justify-content:flex-start;font-size:10px;padding:7px 10px;text-transform:none;letter-spacing:0"
+                  onclick="setUrl('https://www.naukrigulf.com/jobs-in-saudi-arabia')">
+                  📍 Saudi Arabia Jobs
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scrape Queue -->
+        <div class="panel">
+          <div class="panel-head">
+            <h2>⚡ Scrape Queue</h2>
+            <button class="btn btn-ghost" onclick="clearAll()" style="padding:5px 10px;font-size:10px">Clear All</button>
+          </div>
+          <div class="panel-body" style="padding:12px">
+            <div class="queue-list" id="queueList">
+              <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">
+                No tasks yet. Add a URL above.
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ─── RIGHT: Results Panel ─────────────────────────── -->
+      <section>
+        <!-- Stats -->
+        <div class="stats-bar" id="statsBar">
+          <div class="stat-card">
+            <div class="stat-num" id="statTotal">0</div>
+            <div class="stat-label">Rows scraped</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="statSiteTotal" style="color:var(--accent3)">—</div>
+            <div class="stat-label">On site (header)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="statTasksDone" style="color:var(--success)">0</div>
+            <div class="stat-label">Tasks done</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="statRunning" style="color:var(--warning)">0</div>
+            <div class="stat-label">Running</div>
+          </div>
+        </div>
+
+        <!-- Jobs Table -->
+        <div class="section-header">
+          <div class="section-title">Scraped <span>Results</span></div>
+          <button class="btn btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+        </div>
+
+        <div class="toolbar" style="margin-bottom: 16px;">
+          <div class="sort-wrap" style="width: 100%;">
+            <label class="sort-label" for="sortSelect">Sort by posted</label>
+            <select id="sortSelect" class="sort-select" onchange="sortJobs()">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="jobs-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Job Title / Company</th>
+                <th>Description</th>
+                <th>Location</th>
+                <th>Experience</th>
+                <th>Posted</th>
+                <th>Easy apply</th>
+                <th>Employer active</th>
+              </tr>
+            </thead>
+            <tbody id="jobsBody">
+              <tr>
+                <td colspan="8">
+                  <div class="empty-state">
+                    <div class="icon">📋</div>
+                    <p>Scraped jobs will appear here.<br/>Add a URL and click <strong>Start Scraping</strong>.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+  const API = '';
+  let allJobs = [];
+  let pollInterval = null;
+  let activeTasks = new Set();
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function setUrl(url) {
+    document.getElementById('urlInput').value = url;
+    document.getElementById('urlInput').focus();
+  }
+
+  function toast(msg, type = 'info') {
+    const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `<span class="toast-icon">${icons[type]}</span><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  // ── Submit scrape ─────────────────────────────────────────────────────────
+  async function submitScrape() {
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) { toast('Please enter a URL', 'warning'); return; }
+
+    const btn = document.getElementById('scrapeBtn');
+    btn.disabled = true;
+    document.getElementById('btnText').innerHTML = '<span class="spinner"></span>Queuing…';
+
+    let pages = parseInt(document.getElementById('pagesInput').value, 10);
+    if (Number.isNaN(pages) || pages < 1) pages = 1;
+    if (pages > 1000) pages = 1000;
+    let workers = parseInt(document.getElementById('workersInput').value, 10);
+    if (Number.isNaN(workers) || workers < 1) workers = 1;
+    if (workers > 5) workers = 5;
+
+    try {
+      const res = await fetch(`${API}/api/scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, pages, workers })
+      });
+      const data = await res.json();
+      if (data.error) { toast(data.error, 'error'); return; }
+
+      activeTasks.add(data.task_id);
+      document.getElementById('urlInput').value = '';
+      toast(`Scraping ${pages} listing page(s)${workers > 1 ? ` (${workers} parallel workers)` : ''}`, 'info');
+      startPolling();
+    } catch (e) {
+      toast('Failed to start scrape: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      document.getElementById('btnText').innerHTML = '▶ Start Scraping';
+    }
+  }
+
+  // ── Poll for task updates ─────────────────────────────────────────────────
+  function startPolling() {
+    if (pollInterval) return;
+    pollInterval = setInterval(async () => {
+      await refreshTasks();
+      await refreshJobs();
+      if (activeTasks.size === 0 && pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    }, 2500);
+  }
+
+  async function refreshTasks() {
+    try {
+      const res = await fetch(`${API}/api/tasks`);
+      const tasks = await res.json();
+      renderQueue(tasks);
+      updateStats(tasks);
+
+      // Check which tasks are still active
+      const stillActive = new Set();
+      for (const t of tasks) {
+        if (t.status === 'queued' || t.status === 'running') {
+          stillActive.add(t.id);
+        } else if (activeTasks.has(t.id) && t.status === 'done') {
+          const pg = (t.pages_scraped != null && t.pages != null) ? ` (${t.pages_scraped}/${t.pages} pages)` : '';
+          toast(`✔ ${t.count} jobs${pg} — ${shortenUrl(t.url)}`, 'success');
+          activeTasks.delete(t.id);
+        } else if (activeTasks.has(t.id) && t.status === 'error') {
+          toast(`Failed: ${t.error || 'Unknown error'}`, 'error');
+          activeTasks.delete(t.id);
+        }
+      }
+      // Keep only still-active tasks in our set
+      for (const id of activeTasks) {
+        if (!stillActive.has(id)) activeTasks.delete(id);
+      }
+    } catch (e) { /* silent */ }
+  }
+
+  async function refreshJobs() {
+    try {
+      const res = await fetch(`${API}/api/jobs`);
+      allJobs = await res.json();
+      sortJobs();
+      document.getElementById('statTotal').textContent = allJobs.length;
+    } catch (e) { /* silent */ }
+  }
+
+  // ── Render queue ──────────────────────────────────────────────────────────
+  function renderQueue(tasks) {
+    const el = document.getElementById('queueList');
+    if (!tasks.length) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No tasks yet. Add a URL above.</div>';
+      return;
+    }
+    const sorted = [...tasks].reverse();
+    el.innerHTML = sorted.map(t => `
+      <div class="queue-item">
+        <div class="queue-status status-${t.status}"></div>
+        <div class="queue-info">
+          <div class="queue-url">${shortenUrl(t.url)}</div>
+          <div class="queue-meta">${statusLabel(t)} · ${t.pages || 1} page(s)${t.workers > 1 ? ` · ${t.workers} workers` : ''}${t.status === 'done' && t.pages_scraped != null ? ` · scraped ${t.pages_scraped}` : ''}${t.status === 'done' && t.total_jobs_reported != null ? ` · site ${t.total_jobs_reported}` : ''} · ${timeAgo(t.started_at)}</div>
+        </div>
+        ${t.status === 'done' ? `<div class="queue-count">+${t.count}</div>` : ''}
+        ${t.status === 'running' ? `<div style="font-size:10px;color:var(--warning)"><span class="spinner" style="width:12px;height:12px;border-width:1.5px"></span></div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  function statusLabel(t) {
+    return { queued: '⏳ Queued', running: '🔄 Scraping', done: '✅ Done', error: '❌ Error' }[t.status] || t.status;
+  }
+
+  // ── Render jobs ───────────────────────────────────────────────────────────
+  function renderJobs(jobs) {
+    const tbody = document.getElementById('jobsBody');
+    if (!jobs.length) {
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">📋</div><p>Scraped jobs will appear here.<br/>Add a URL and click <strong>Start Scraping</strong>.</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = jobs.map((j, i) => `
+      <tr>
+        <td style="color:var(--muted);font-family:var(--mono);font-size:11px">${i + 1}</td>
+        <td>
+          <div class="td-title">${esc(j.title || '—')}</div>
+          <div class="td-company">${esc(j.company || '')}</div>
+        </td>
+        <td class="desc-cell">${j.description_snippet ? esc(j.description_snippet.slice(0, 220)) + (j.description_snippet.length > 220 ? '…' : '') : '<span style="color:var(--muted)">—</span>'}</td>
+        <td>${j.location ? `<span class="pill pill-loc">${esc(j.location)}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+        <td>${j.experience ? `<span class="pill pill-exp">${esc(j.experience)}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+        <td style="color:var(--muted);font-size:12px;white-space:nowrap">${esc(j.posted_date || '—')}</td>
+        <td style="font-size:12px">${j.easy_apply ? esc(j.easy_apply) : '—'}</td>
+        <td style="font-size:12px">${j.employer_active ? esc(j.employer_active) : '—'}</td>
+      </tr>
+    `).join('');
+  }
+
+  function sortJobs() {
+    const parsePostedToSeconds = (postedText) => {
+      if (!postedText) return null;
+      const t = String(postedText).toLowerCase().replace(/\s+/g, ' ').trim();
+      if (!t) return null;
+      if (t.includes('just now')) return 0;
+
+      // Relative strings like "18 min ago", "3 days ago", "2 months ago"
+      const m = t.match(/(\d+)\s*(min|mins|minute|minutes|hr|hrs|hour|hours|day|days|week|weeks|month|months)\s*ago/);
+      if (m) {
+        const num = parseInt(m[1], 10);
+        const unit = m[2];
+        if (!Number.isFinite(num)) return null;
+        if (unit.startsWith('min')) return num * 60;
+        if (unit.startsWith('hr') || unit.startsWith('hour')) return num * 3600;
+        if (unit.startsWith('day')) return num * 86400;
+        if (unit.startsWith('week')) return num * 604800;
+        if (unit.startsWith('month')) return num * 2592000;
+        return null;
+      }
+
+      // Try absolute dates (if scraper extracted something parseable)
+      const ms = Date.parse(postedText);
+      if (!Number.isNaN(ms)) {
+        const secs = Math.floor((Date.now() - ms) / 1000);
+        return secs < 0 ? 0 : secs;
+      }
+      return null;
+    };
+
+    const sortMode = (document.getElementById('sortSelect') && document.getElementById('sortSelect').value) || 'newest';
+    const list = [...allJobs];
+    list.sort((a, b) => {
+      const sa = parsePostedToSeconds(a.posted_date);
+      const sb = parsePostedToSeconds(b.posted_date);
+      if (sa == null && sb == null) return 0;
+      if (sa == null) return 1; // nulls last
+      if (sb == null) return -1;
+      if (sortMode === 'oldest') return sb - sa;
+      return sa - sb;
+    });
+
+    renderJobs(list);
+  }
+
+  // ── Stats ─────────────────────────────────────────────────────────────────
+  function updateStats(tasks) {
+    document.getElementById('statTotal').textContent = allJobs.length;
+    const done = tasks.filter(t => t.status === 'done');
+    document.getElementById('statTasksDone').textContent = done.length;
+    const withSite = [...done]
+      .filter(t => t.total_jobs_reported != null)
+      .sort((a, b) => String(b.finished_at || '').localeCompare(String(a.finished_at || '')));
+    document.getElementById('statSiteTotal').textContent =
+      withSite.length ? String(withSite[0].total_jobs_reported) : '—';
+    const running = tasks.filter(t => t.status === 'running' || t.status === 'queued').length;
+    document.getElementById('statRunning').textContent = running;
+  }
+
+  // ── Export ────────────────────────────────────────────────────────────────
+  function exportCSV() {
+    if (!allJobs.length) { toast('No jobs to export', 'warning'); return; }
+    window.open(`${API}/api/jobs/export`, '_blank');
+  }
+
+  // ── Clear ─────────────────────────────────────────────────────────────────
+  async function clearAll() {
+    if (!confirm('Clear all scraped data and tasks?')) return;
+    await fetch(`${API}/api/jobs`, { method: 'DELETE' });
+    allJobs = [];
+    activeTasks.clear();
+    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    renderJobs([]);
+    renderQueue([]);
+    document.getElementById('statTotal').textContent = '0';
+    document.getElementById('statSiteTotal').textContent = '—';
+    document.getElementById('statTasksDone').textContent = '0';
+    document.getElementById('statRunning').textContent = '0';
+    toast('Cleared', 'info');
+  }
+
+  // ── Utils ─────────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function shortenUrl(url) {
+    try { const u = new URL(url); return u.hostname + u.pathname.slice(0,30); } catch { return url.slice(0,40); }
+  }
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s/60)}m ago`;
+    return `${Math.floor(s/3600)}h ago`;
+  }
+
+  // ── Keyboard shortcut ─────────────────────────────────────────────────────
+  document.getElementById('urlInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitScrape();
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  refreshTasks();
+  refreshJobs();
+</script>
+
+</body>
+</html>
